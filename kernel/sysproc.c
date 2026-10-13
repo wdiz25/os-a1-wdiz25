@@ -6,6 +6,7 @@
 #include "spinlock.h"
 #include "proc.h"
 #include "vm.h"
+#include "sysinfo.h"
 
 uint64
 sys_exit(void)
@@ -29,6 +30,23 @@ sys_trace(void)
 
   argint(0, &mask);
   myproc()->tracemask = mask;
+  return 0;
+}
+
+uint64
+sys_sysinfo(void)
+{
+  uint64 addr;
+  struct sysinfo info;
+  struct proc *p = myproc();
+
+  argaddr(0, &addr);
+  info.freemem = kfreepages() * PGSIZE;
+  info.nproc = nproc_used();
+  info.nopenfile = nopenfiles();
+  // copyout checks that addr is valid user memory, and fails if it isn't
+  if (copyout(p->pagetable, p->sz, addr, (char *)&info, sizeof(info)) < 0)
+    return -1;
   return 0;
 }
 

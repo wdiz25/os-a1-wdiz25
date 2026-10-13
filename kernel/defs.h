@@ -34,6 +34,7 @@ void            fileinit(void);
 int             fileread(struct file*, uint64, int n);
 int             filestat(struct file*, uint64 addr);
 int             filewrite(struct file*, uint64, int n);
+uint64          nopenfiles(void);
 
 // fs.c
 void            fsinit(int);
@@ -60,6 +61,7 @@ void            ireclaim(int);
 void*           kalloc(void);
 void            kfree(void *);
 void            kinit(void);
+uint64          kfreepages(void);
 
 // log.c
 void            initlog(int, struct superblock*);
@@ -87,6 +89,7 @@ void            proc_mapstacks(pagetable_t);
 pagetable_t     proc_pagetable(struct proc *);
 void            proc_freepagetable(pagetable_t, uint64);
 int             kkill(int);
+uint64          nproc_used(void);
 int             killed(struct proc*);
 void            setkilled(struct proc*);
 struct cpu*     mycpu(void);

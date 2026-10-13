@@ -625,6 +625,22 @@ kkill(int pid)
   return -1;
 }
 
+// Count the processes whose state is not UNUSED.
+uint64
+nproc_used(void)
+{
+  struct proc *p;
+  uint64 n = 0;
+
+  for (p = proc; p < &proc[NPROC]; p++) {
+    acquire(&p->lock);
+    if (p->state != UNUSED)
+      n++;
+    release(&p->lock);
+  }
+  return n;
+}
+
 void
 setkilled(struct proc *p)
 {
