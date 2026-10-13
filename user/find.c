@@ -48,8 +48,7 @@ find(char *dir)
   }
   if (strlen(dir) + 1 + DIRSIZ + 1 > sizeof buf) {
     fprintf(2, "find: path too long: %s\n", dir);
-    close(fd);
-    return 0;
+    exit(1);
   }
   strcpy(buf, dir);
   p = buf + strlen(buf);
@@ -66,12 +65,14 @@ find(char *dir)
       continue;
     if (stat(buf, &st) < 0) {
       fprintf(2, "find: cannot stat %s\n", buf);
-      continue;
+      exit(1);
     }
     if (match(pattern, p) && typeok(st.type))
       printf("%s\n", buf);
-    if (st.type == T_DIR && find(buf) < 0)
+    if (st.type == T_DIR && find(buf) < 0) {
       fprintf(2, "find: cannot open %s\n", buf);
+      exit(1);
+    }
   }
   close(fd);
   return 0;
