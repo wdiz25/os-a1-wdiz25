@@ -11,14 +11,16 @@ usage(void)
 int
 main(int argc, char *argv[])
 {
-  if(argc != 2 || argv[1][0] == '\0')  // check for one argument that is not empty
+  // check for one argument that is not empty
+  if(argc != 2 || argv[1][0] == '\0')
     usage();
 
-  // check for not-numerical characters
+  // check for non-numerical characters
   for(char *s = argv[1]; *s; s++)
     if(*s < '0' || *s > '9')
       usage();
 
+  // convert the argument to an integer and pause for that many ticks
   pause(atoi(argv[1]));
   exit(0);
 }
