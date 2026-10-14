@@ -4,6 +4,10 @@
 
 #define WORDMAX 512  // longest input word, including its '\0'
 
+// The words of the batch being collected. static because 32 x 512 bytes
+// (16 KB) would overflow xv6's 4 KB user stack.
+static char words[MAXARG][WORDMAX];
+
 // Run args[0] with the null-terminated argument list args and wait for it.
 // Returns 0 if it exited with status 0, -1 otherwise.
 static int
@@ -25,6 +29,13 @@ run(char *args[])
   return status == 0 ? 0 : -1;
 }
 
+// Spaces, tabs and newlines separate words.
+static int
+is_blank(char c)
+{
+  return c == ' ' || c == '\t' || c == '\n';
+}
+
 static void
 usage(void)
 {
@@ -32,28 +43,38 @@ usage(void)
   exit(1);
 }
 
+// Return N from "-n N", or print the usage message and exit if N is not
+// all digits (this rejects "2x" and "-1") or is less than 1 (this rejects
+// "" and "0").
+static int
+parse_n(char *s)
+{
+  char *p;
+  int n;
+
+  for (p = s; *p; p++)
+    if (*p < '0' || *p > '9')
+      usage();
+  if ((n = atoi(s)) < 1)
+    usage();
+  return n;
+}
+
 int
 main(int argc, char *argv[])
 {
-  int n = 0;      // words per run with -n; 0 means one run per input line
-  int first = 1;  // index of <cmd> in argv
-  char *s;
+  int perrun = 0;  // N from -n N; 0 means one run per input line
+  int cmdidx = 1;  // index of <cmd> in argv
 
   if (argc > 1 && strcmp(argv[1], "-n") == 0) {
     if (argc < 3)
       usage();
-    // N must be all digits (this rejects "2x" and "-1") and at least 1
-    // (this rejects "" and "0")
-    for (s = argv[2]; *s; s++)
-      if (*s < '0' || *s > '9')
-        usage();
-    if ((n = atoi(argv[2])) < 1)
-      usage();
-    first = 3;
+    perrun = parse_n(argv[2]);
+    cmdidx = 3;
   }
-  if (first >= argc)  // no <cmd>
+  if (cmdidx >= argc)  // no <cmd>
     usage();
-  if (argc - first >= MAXARG - 1) {
+  if (argc - cmdidx >= MAXARG - 1) {
     fprintf(2, "xargs: too many arguments\n");
     exit(1);
   }
@@ -61,47 +82,46 @@ main(int argc, char *argv[])
   // args[] = <cmd> [args...], then the batch of input words, then 0.
   // The kernel's exec() needs that 0 to fit in MAXARG slots too, so a run
   // gets at most MAXARG - 1 arguments.
-  // words[] is static because 16 KB would overflow xv6's 4 KB stack.
-  static char words[MAXARG][WORDMAX];
   char *args[MAXARG];
-  int base = argc - first;        // number of <cmd> [args...]
-  int limit = MAXARG - 1 - base;  // most words one run can take
-  int nw = 0;                 // words in the current batch
-  int len = 0;                // length of the word being read
+  int nfixed = argc - cmdidx;          // <cmd> [args...], always passed
+  int maxwords = MAXARG - 1 - nfixed;  // most input words one run can take
+  int nwords = 0;                      // words in the current batch
+  int wordlen = 0;                     // length of the word being read
   int failed = 0;
-  int i, r;
+  int i, eof, endline;
   char c = 0;
 
-  if (n > 0 && n < limit)
-    limit = n;
-  for (i = 0; i < base; i++)
-    args[i] = argv[first + i];
+  if (perrun > 0 && perrun < maxwords)
+    maxwords = perrun;
+  for (i = 0; i < nfixed; i++)
+    args[i] = argv[cmdidx + i];
 
   for (;;) {
-    r = read(0, &c, 1);
-    if (r == 1 && c != ' ' && c != '\t' && c != '\n') {  // part of a word
-      if (len == WORDMAX - 1) {
+    eof = read(0, &c, 1) != 1;
+    if (!eof && !is_blank(c)) {  // part of a word
+      if (wordlen == WORDMAX - 1) {
         fprintf(2, "xargs: word too long\n");
         exit(1);
       }
-      words[nw][len++] = c;
+      words[nwords][wordlen++] = c;
       continue;
     }
-    if (len > 0) {  // whitespace or end of input ends the current word
-      words[nw++][len] = '\0';
-      len = 0;
+    if (wordlen > 0) {  // whitespace or end of input ends the current word
+      words[nwords++][wordlen] = '\0';
+      wordlen = 0;
     }
+    endline = !eof && c == '\n';
     // run when the batch is full, at the end of input, or at the end of
     // a line without -n
-    if (nw > 0 && (nw == limit || r != 1 || (c == '\n' && n == 0))) {
-      for (i = 0; i < nw; i++)
-        args[base + i] = words[i];
-      args[base + nw] = 0;
+    if (nwords > 0 && (nwords == maxwords || eof || (endline && perrun == 0))) {
+      for (i = 0; i < nwords; i++)
+        args[nfixed + i] = words[i];
+      args[nfixed + nwords] = 0;
       if (run(args) < 0)
         failed = 1;
-      nw = 0;
+      nwords = 0;
     }
-    if (r != 1)
+    if (eof)
       break;
   }
   exit(failed);

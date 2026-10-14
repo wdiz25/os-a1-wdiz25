@@ -5,10 +5,10 @@
 #include "kernel/fcntl.h"
 #include "kernel/param.h"
 
-static char *pattern;
-static int want = 0;  // T_FILE / T_DIR for -type f / -type d
+static char *pattern;  // the <pattern> argument
+static int want = 0;   // -type filter: 0 for any type, or T_FILE / T_DIR
 
-// check if the file type matches and return 1 if it does, 0 otherwise
+// check if a file of this type passes the -type filter (1 if it does)
 static int
 typeok(short type)
 {
@@ -19,7 +19,8 @@ typeok(short type)
   return 1;
 }
 
-// check if name matches pattern. '*' matches any run of characters, even an empty one
+// check if name matches pattern. '*' matches any run of characters, even
+// an empty one
 static int
 match(char *pat, char *name)
 {
@@ -35,7 +36,7 @@ match(char *pat, char *name)
 static int
 find(char *dir)
 {
-  char buf[MAXPATH], *p; // MAXPATH as used in open()
+  char buf[MAXPATH], *p; // MAXPATH: the longest path open() accepts
   int fd;
   struct dirent de;
   struct stat st;
@@ -88,17 +89,18 @@ usage(void)
 int
 main(int argc, char *argv[])
 {
-  if (argc == 5 && strcmp(argv[3], "-type") == 0) { // check if type is specified
-    if (strcmp(argv[4], "f") == 0)                  // -type f
+  // find <dir> <pattern> -type f|d
+  if (argc == 5 && strcmp(argv[3], "-type") == 0) {
+    if (strcmp(argv[4], "f") == 0)
       want = T_FILE;
-    else if (strcmp(argv[4], "d") == 0)             // -type d
+    else if (strcmp(argv[4], "d") == 0)
       want = T_DIR;
     else
-      usage();                                      // invalid type
-  } else if (argc != 3) {                           // check for correct number of arguments w/ unspecified type
+      usage();  // invalid type
+  } else if (argc != 3) {  // otherwise it must be find <dir> <pattern>
     usage();
   }
-  pattern = argv[2]; // set the pattern to search for
+  pattern = argv[2];
 
   if (find(argv[1]) < 0) {
     fprintf(2, "find: cannot open %s\n", argv[1]);

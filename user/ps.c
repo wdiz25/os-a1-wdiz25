@@ -13,6 +13,7 @@ static char *states[] = {
   [4] = "running",
   [5] = "zombie",
 };
+#define NSTATES (sizeof(states) / sizeof(states[0]))  // entries in states[]
 
 // static: 64 entries (2.5 KB) is too much for xv6's 4 KB user stack
 static struct uproc procs[NPROC];
@@ -22,6 +23,7 @@ main(void)
 {
   int i, n;
   char *state;
+  struct uproc *u;
 
   if ((n = getprocs(procs, NPROC)) < 0) {
     fprintf(2, "ps: getprocs failed\n");
@@ -29,11 +31,11 @@ main(void)
   }
   printf("PID\tPPID\tSTATE\tSIZE\tNAME\n");
   for (i = 0; i < n; i++) {
+    u = &procs[i];
     state = "?";
-    if (procs[i].state >= 1 && procs[i].state <= 5)
-      state = states[procs[i].state];
-    printf("%d\t%d\t%s\t%lu\t%s\n", procs[i].pid, procs[i].ppid, state,
-           procs[i].sz, procs[i].name);
+    if (u->state > 0 && u->state < NSTATES)
+      state = states[u->state];
+    printf("%d\t%d\t%s\t%lu\t%s\n", u->pid, u->ppid, state, u->sz, u->name);
   }
   exit(0);
 }

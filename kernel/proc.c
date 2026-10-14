@@ -672,10 +672,8 @@ kgetprocs(uint64 buf, int max)
     release(&p->lock);
     release(&wait_lock);
 
-    // Copy with no locks held: copyout may allocate a page for a lazily
-    // allocated buffer (vmfault -> kalloc, which takes kmem.lock), and
-    // holding spinlocks across it would keep interrupts off and block
-    // other CPUs for longer than needed.
+    // Copy with no locks held: copyout may allocate a page (for a lazily
+    // allocated buffer), and other CPUs shouldn't wait on our locks.
     if (copyout(me->pagetable, me->sz, buf + n * sizeof(u), (char *)&u,
                 sizeof(u)) < 0)
       return -1;

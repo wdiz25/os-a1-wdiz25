@@ -198,8 +198,8 @@ argkind(int num)
 void
 syscall(void)
 {
-  int num, arg, ret, strok = 0;
-  char str[MAXPATH];
+  int num, arg, ret, kind, strok = 0;
+  char str[MAXPATH], *name;
   struct proc *p = myproc();
 
   num = p->trapframe->a7;
@@ -217,16 +217,19 @@ syscall(void)
     p->trapframe->a0 = syscalls[num]();
 
     // Check the mask after the call, so that trace() can trace itself.
+    // One printk per line, so lines from different CPUs don't interleave.
     if (p->tracemask & (1 << num)) {
+      kind = argkind(num);
+      name = syscallnames[num];
       ret = p->trapframe->a0;
-      if (argkind(num) == ARG_STR && strok)
-        printk("[%d] %s(\"%s\") -> %d\n", p->pid, syscallnames[num], str, ret);
-      else if (argkind(num) == ARG_STR)
-        printk("[%d] %s(?) -> %d\n", p->pid, syscallnames[num], ret);
-      else if (argkind(num) == ARG_NONE)
-        printk("[%d] %s() -> %d\n", p->pid, syscallnames[num], ret);
-      else
-        printk("[%d] %s(%d) -> %d\n", p->pid, syscallnames[num], arg, ret);
+      if (kind == ARG_NONE)       // fork, getpid, uptime, sync
+        printk("[%d] %s() -> %d\n", p->pid, name, ret);
+      else if (kind == ARG_INT)   // every other syscall: a0 as a signed int
+        printk("[%d] %s(%d) -> %d\n", p->pid, name, arg, ret);
+      else if (strok)             // path syscalls: the string in quotes
+        printk("[%d] %s(\"%s\") -> %d\n", p->pid, name, str, ret);
+      else                        // ... or ? if it could not be read
+        printk("[%d] %s(?) -> %d\n", p->pid, name, ret);
     }
   } else {
     printk("%d %s: unknown sys call %d\n", p->pid, p->name, num);
