@@ -51,6 +51,19 @@ sys_sysinfo(void)
 }
 
 uint64
+sys_getprocs(void)
+{
+  uint64 buf;
+  int max;
+
+  argaddr(0, &buf);
+  argint(1, &max);
+  if (max < 0)
+    return -1;
+  return kgetprocs(buf, max);
+}
+
+uint64
 sys_fork(void)
 {
   return kfork();
